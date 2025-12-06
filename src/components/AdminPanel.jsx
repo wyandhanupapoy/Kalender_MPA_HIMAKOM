@@ -150,6 +150,59 @@ export default function AdminPanel({ isOpen, onClose }) {
     }
   };
 
+  const fixMissingUserFields = async () => {
+    if (!confirm('Perbaiki semua user dengan field yang hilang? Ini akan memperbarui user yang tidak memiliki isActive, role, atau displayName.')) return;
+    
+    setLoading(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+    
+    try {
+      const usersToFix = users.filter(user => 
+        user.isActive === undefined || 
+        !user.role || 
+        !user.displayName
+      );
+
+      if (usersToFix.length === 0) {
+        setSuccessMessage('Semua user sudah memiliki field yang lengkap!');
+        setLoading(false);
+        return;
+      }
+
+      for (const user of usersToFix) {
+        const updates = {};
+        
+        if (user.isActive === undefined) {
+          updates.isActive = true;
+        }
+        
+        if (!user.role) {
+          updates.role = 'anggota';
+        }
+        
+        if (!user.displayName) {
+          updates.displayName = user.email?.split('@')[0] || 'User';
+        }
+
+        if (Object.keys(updates).length > 0) {
+          updates.updatedAt = serverTimestamp();
+          updates.updatedBy = userProfile.uid;
+          
+          await updateDoc(doc(db, 'users', user.id), updates);
+        }
+      }
+
+      setSuccessMessage(`Berhasil memperbaiki ${usersToFix.length} user!`);
+      loadUsers();
+    } catch (err) {
+      console.error('Error fixing user fields:', err);
+      setErrorMessage('Gagal memperbaiki data user: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredUsers = users.filter(user => {
     const matchesSearch =
       user.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||

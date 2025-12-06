@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import './App.css';
 import {
   collection,
@@ -23,8 +24,7 @@ import {
   Users,
   Search,
   LogOut,
-  Settings,
-  User as UserIcon
+  Settings
 } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { db, appId } from './config/firebase-config';
@@ -68,6 +68,13 @@ const Modal = ({ isOpen, onClose, title, children }) => {
   );
 };
 
+Modal.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  title: PropTypes.string.isRequired,
+  children: PropTypes.node.isRequired
+};
+
 const CategoryBadge = ({ category }) => {
   const style = CATEGORIES[category] || CATEGORIES.UMUM;
   return (
@@ -76,6 +83,10 @@ const CategoryBadge = ({ category }) => {
       {style.label}
     </span>
   );
+};
+
+CategoryBadge.propTypes = {
+  category: PropTypes.string.isRequired
 };
 
 export default function App() {
@@ -118,6 +129,16 @@ export default function App() {
     return () => unsubscribe();
   }, [currentUser]);
 
+  // --- Computed Values (useMemo hooks must be before early returns) ---
+  const filteredEvents = useMemo(() => {
+    return events.filter(ev => {
+      const matchCat = filterCategory === 'ALL' || ev.category === filterCategory;
+      const matchSearch = ev.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ev.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchCat && matchSearch;
+    });
+  }, [events, filterCategory, searchQuery]);
+
   // Early returns after hooks
   if (!currentUser || !userProfile) {
     return <Login />;
@@ -147,19 +168,62 @@ export default function App() {
     return days;
   };
 
-  const filteredEvents = useMemo(() => {
-    return events.filter(ev => {
-      const matchCat = filterCategory === 'ALL' || ev.category === filterCategory;
-      const matchSearch = ev.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ev.description?.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchCat && matchSearch;
-    });
-  }, [events, filterCategory, searchQuery]);
-
   const getEventsForDate = date => {
     if (!date) return [];
     const ds = date.toISOString().split('T')[0];
     return filteredEvents.filter(ev => ev.date === ds);
+  };
+
+  const renderEventsList = (selectedDate) => {
+    const eventsForDate = getEventsForDate(selectedDate);
+
+    if (eventsForDate.length === 0) {
+      return (
+        <div className="text-center py-10 text-gray-500">
+          <p>Tidak ada agenda pada tanggal ini.</p>
+          {isPengurus() && (
+            <button onClick={() => openAddModal(selectedDate.toISOString().split('T')[0])} className="text-blue-600 text-sm mt-2 hover:underline">+ Tambah Agenda</button>
+          )}
+        </div>
+      );
+    }
+
+    const sortedEvents = eventsForDate.toSorted((a, b) => a.startTime.localeCompare(b.startTime));
+
+    return (
+      <>
+        {sortedEvents.map(ev => {
+          const getBorderColor = () => {
+            if (ev.category === 'LEGISLASI') return '#3b82f6';
+            if (ev.category === 'PENGAWASAN') return '#ef4444';
+            if (ev.category === 'ASPIRASI') return '#22c55e';
+            return '#9ca3af';
+          };
+          return (
+            <div key={ev.id} className="group bg-white border border-l-4 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden" style={{ borderLeftColor: getBorderColor() }}>
+              <div className="flex justify-between items-start mb-2">
+                <CategoryBadge category={ev.category} />
+                {isPengurus() && (
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => openEditModal(ev)} className="p-1 hover:bg-gray-100 rounded text-blue-600"><Edit2 size={14} /></button>
+                    {isAdmin() && (
+                      <button onClick={() => handleDeleteEvent(ev.id)} className="p-1 hover:bg-gray-100 rounded text-red-600"><Trash2 size={14} /></button>
+                    )}
+                  </div>
+                )}
+              </div>
+              <h4 className="font-bold text-gray-800 text-lg leading-snug mb-1">{ev.title}</h4>
+              <div className="text-sm text-gray-600 space-y-1 mb-3">
+                <div className="flex items-center gap-2"><Clock size={14} /> {ev.startTime} - {ev.endTime} WIB</div>
+                {ev.location && (<div className="flex items-center gap-2"><MapPin size={14} /> {ev.location}</div>)}
+                {ev.pic && (<div className="flex items-center gap-2 text-gray-500"><Users size={14} /> PIC: {ev.pic}</div>)}
+              </div>
+              {ev.description && (<div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md border border-dashed">{ev.description}</div>)}
+            </div>
+          );
+        })}
+      </>
+    );
   };
 
   // --- Handlers ---
@@ -258,22 +322,36 @@ export default function App() {
           </div>
         ))}
         {days.map((date, idx) => {
-          if (!date) return <div key={`empty-${idx}`} className="bg-white min-h-[120px]" />;
+          if (!date) {
+            const emptyKey = `empty-${Math.floor(idx / 7)}-${idx % 7}`;
+            return <div key={emptyKey} className="bg-white min-h-[120px]" />;
+          }
           const dateEvents = getEventsForDate(date);
           const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
           const isToday = new Date().toDateString() === date.toDateString();
+          const dateString = date.toISOString();
           return (
             <div
-              key={idx}
+              key={dateString}
+              className={`bg-white min-h-[120px] p-2 transition-all cursor-pointer hover:bg-gray-50 flex flex-col gap-1 relative border-0 group ${isSelected ? 'ring-2 ring-blue-500 inset-0 z-10' : ''}`}
               onClick={() => handleDateClick(date)}
-              className={`bg-white min-h-[120px] p-2 transition-all cursor-pointer hover:bg-gray-50 flex flex-col gap-1 relative ${isSelected ? 'ring-2 ring-blue-500 inset-0 z-10' : ''}`}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleDateClick(date);
+                }
+              }}
             >
               <div className="flex justify-between items-center mb-1">
                 <span className={`text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white' : 'text-gray-700'}`}>{date.getDate()}</span>
                 {isPengurus() && (
                   <button
                     onClick={e => { e.stopPropagation(); openAddModal(date.toISOString().split('T')[0]); }}
+                    type="button"
                     className="text-gray-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label={`Add event on ${date.toLocaleDateString()}`}
                   >
                     <Plus size={16} />
                   </button>
@@ -343,10 +421,10 @@ export default function App() {
               </button>
               {showUserMenu && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
+                  <button type="button" className="fixed inset-0 z-40 bg-transparent border-0 cursor-default" onClick={() => setShowUserMenu(false)} aria-label="Close user menu" />
                   <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border z-50 py-1">
                     <div className="px-4 py-3 border-b">
-                      <p className="text-sm font-medium text-gray-800">{userProfile?.displayName}</p>
+                      <p className="text-sm font-medium text-gray-800">{userProfile?.displayName || userProfile?.email}</p>
                       <p className="text-xs text-gray-500">{userProfile?.email}</p>
                       <span className="inline-block mt-1 text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full capitalize">{userProfile?.role}</span>
                     </div>
@@ -437,41 +515,13 @@ export default function App() {
               )}
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {!selectedDate ? (
+              {selectedDate ? (
+                renderEventsList(selectedDate)
+              ) : (
                 <div className="flex flex-col items-center justify-center h-48 text-gray-400 text-center">
                   <Calendar size={48} className="mb-2 opacity-20" />
-                  <p>Klik tanggal di kalender<br/>untuk melihat detail acara.</p>
+                  <p>Klik tanggal di kalender<br />untuk melihat detail acara.</p>
                 </div>
-              ) : getEventsForDate(selectedDate).length === 0 ? (
-                <div className="text-center py-10 text-gray-500">
-                  <p>Tidak ada agenda pada tanggal ini.</p>
-                  {isPengurus() && (
-                    <button onClick={() => openAddModal(selectedDate.toISOString().split('T')[0])} className="text-blue-600 text-sm mt-2 hover:underline">+ Tambah Agenda</button>
-                  )}
-                </div>
-              ) : (
-                getEventsForDate(selectedDate).sort((a, b) => a.startTime.localeCompare(b.startTime)).map(ev => (
-                  <div key={ev.id} className="group bg-white border border-l-4 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden" style={{ borderLeftColor: ev.category === 'LEGISLASI' ? '#3b82f6' : ev.category === 'PENGAWASAN' ? '#ef4444' : ev.category === 'ASPIRASI' ? '#22c55e' : '#9ca3af' }}>
-                    <div className="flex justify-between items-start mb-2">
-                      <CategoryBadge category={ev.category} />
-                      {isPengurus() && (
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => openEditModal(ev)} className="p-1 hover:bg-gray-100 rounded text-blue-600"><Edit2 size={14} /></button>
-                          {isAdmin() && (
-                            <button onClick={() => handleDeleteEvent(ev.id)} className="p-1 hover:bg-gray-100 rounded text-red-600"><Trash2 size={14} /></button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <h4 className="font-bold text-gray-800 text-lg leading-snug mb-1">{ev.title}</h4>
-                    <div className="text-sm text-gray-600 space-y-1 mb-3">
-                      <div className="flex items-center gap-2"><Clock size={14} /> {ev.startTime} - {ev.endTime} WIB</div>
-                      {ev.location && (<div className="flex items-center gap-2"><MapPin size={14} /> {ev.location}</div>)}
-                      {ev.pic && (<div className="flex items-center gap-2 text-gray-500"><Users size={14} /> PIC: {ev.pic}</div>)}
-                    </div>
-                    {ev.description && (<div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md border border-dashed">{ev.description}</div>)}
-                  </div>
-                ))
               )}
             </div>
           </div>
@@ -482,44 +532,44 @@ export default function App() {
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title={editingEvent ? 'Edit Agenda' : 'Tambah Agenda Baru'}>
         <form onSubmit={handleSaveEvent} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Judul Kegiatan</label>
-            <input required type="text" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} placeholder="Contoh: Sidang Pleno I" />
+            <label htmlFor="event-title" className="block text-sm font-medium text-gray-700 mb-1">Judul Kegiatan</label>
+            <input id="event-title" required type="text" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} placeholder="Contoh: Sidang Pleno I" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
-              <select className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
+              <label htmlFor="event-category" className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
+              <select id="event-category" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
                 {Object.keys(CATEGORIES).map(key => (
                   <option key={key} value={key}>{CATEGORIES[key].label}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
-              <input required type="date" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
+              <label htmlFor="event-date" className="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
+              <input id="event-date" required type="date" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Jam Mulai</label>
-              <input type="time" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.startTime} onChange={e => setFormData({ ...formData, startTime: e.target.value })} />
+              <label htmlFor="event-start-time" className="block text-sm font-medium text-gray-700 mb-1">Jam Mulai</label>
+              <input id="event-start-time" type="time" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.startTime} onChange={e => setFormData({ ...formData, startTime: e.target.value })} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Jam Selesai</label>
-              <input type="time" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.endTime} onChange={e => setFormData({ ...formData, endTime: e.target.value })} />
+              <label htmlFor="event-end-time" className="block text-sm font-medium text-gray-700 mb-1">Jam Selesai</label>
+              <input id="event-end-time" type="time" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.endTime} onChange={e => setFormData({ ...formData, endTime: e.target.value })} />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Lokasi</label>
-            <input type="text" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="Contoh: Ruang Sidang Lt. 3" />
+            <label htmlFor="event-location" className="block text-sm font-medium text-gray-700 mb-1">Lokasi</label>
+            <input id="event-location" type="text" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="Contoh: Ruang Sidang Lt. 3" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">PIC / Penanggung Jawab</label>
-            <input type="text" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.pic} onChange={e => setFormData({ ...formData, pic: e.target.value })} placeholder="Nama Komisi / Orang" />
+            <label htmlFor="event-pic" className="block text-sm font-medium text-gray-700 mb-1">PIC / Penanggung Jawab</label>
+            <input id="event-pic" type="text" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.pic} onChange={e => setFormData({ ...formData, pic: e.target.value })} placeholder="Nama Komisi / Orang" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi Tambahan</label>
-            <textarea rows={3} className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Detail agenda, link dokumen, dll..." />
+            <label htmlFor="event-description" className="block text-sm font-medium text-gray-700 mb-1">Deskripsi Tambahan</label>
+            <textarea id="event-description" rows={3} className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Detail agenda, link dokumen, dll..." />
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t mt-2">
             <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Batal</button>

@@ -33,10 +33,7 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated(); // Allow user creation during signup
       allow update: if isAuthenticated() && (
-        // Admin can update anyone
-        getUserData().role == 'admin' || 
-        // User can update themselves (but not their role)
-        (request.auth.uid == userId && request.resource.data.role == resource.data.role)
+        request.auth.uid == userId || getUserData().role == 'admin'
       );
       allow delete: if isAuthenticated() && getUserData().role == 'admin';
     }

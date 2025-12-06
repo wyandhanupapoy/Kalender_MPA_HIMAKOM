@@ -1,24 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { 
-  collection, 
-  getDocs, 
+import {
+  collection,
+  getDocs,
   addDoc,
-  setDoc, 
-  updateDoc, 
-  doc, 
+  setDoc,
+  updateDoc,
+  doc,
   serverTimestamp,
   query,
-  orderBy 
+  orderBy
 } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '../config/firebase-config';
-import { 
-  Users, 
-  Plus, 
-  X, 
-  Shield, 
-  ShieldCheck, 
+import {
+  Users,
+  Plus,
+  X,
+  Shield,
+  ShieldCheck,
   ShieldAlert,
   Mail,
   Lock,
@@ -113,7 +113,7 @@ export default function AdminPanel({ isOpen, onClose }) {
         displayName: '',
         role: 'anggota'
       });
-      
+
       setTimeout(() => {
         setShowAddUser(false);
         setSuccessMessage('');
@@ -151,7 +151,7 @@ export default function AdminPanel({ isOpen, onClose }) {
   };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = 
+    const matchesSearch =
       user.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = roleFilter === 'ALL' || user.role === roleFilter;
@@ -172,12 +172,23 @@ export default function AdminPanel({ isOpen, onClose }) {
               <p className="text-blue-100 text-sm">Kelola akun anggota MPA</p>
             </div>
           </div>
-          <button 
-            onClick={onClose} 
-            className="p-2 hover:bg-white/20 rounded-full transition-colors"
-          >
-            <X size={24} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={fixMissingUserFields}
+              disabled={loading}
+              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+              title="Perbaiki user dengan field yang hilang (isActive, displayName, role, dll)"
+            >
+              <AlertCircle size={16} />
+              Perbaiki Data
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-white/20 rounded-full transition-colors"
+            >
+              <X size={24} />
+            </button>
+          </div>
         </div>
 
         {/* Controls */}
@@ -192,7 +203,7 @@ export default function AdminPanel({ isOpen, onClose }) {
               className="flex-1 outline-none text-sm"
             />
           </div>
-          
+
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
@@ -217,7 +228,7 @@ export default function AdminPanel({ isOpen, onClose }) {
         {showAddUser && (
           <div className="p-6 border-b bg-blue-50">
             <h3 className="text-lg font-bold text-gray-800 mb-4">Tambah Pengguna Baru</h3>
-            
+
             {errorMessage && (
               <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-lg flex items-start gap-2">
                 <AlertCircle size={18} className="text-red-600 mt-0.5 flex-shrink-0" />
@@ -245,7 +256,7 @@ export default function AdminPanel({ isOpen, onClose }) {
                     type="text"
                     required
                     value={formData.displayName}
-                    onChange={(e) => setFormData({...formData, displayName: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
                     className="w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="John Doe"
                     disabled={formLoading}
@@ -265,7 +276,7 @@ export default function AdminPanel({ isOpen, onClose }) {
                     type="email"
                     required
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="email@example.com"
                     disabled={formLoading}
@@ -285,7 +296,7 @@ export default function AdminPanel({ isOpen, onClose }) {
                     type="password"
                     required
                     value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     placeholder="Min. 6 karakter"
                     disabled={formLoading}
@@ -300,7 +311,7 @@ export default function AdminPanel({ isOpen, onClose }) {
                 </label>
                 <select
                   value={formData.role}
-                  onChange={(e) => setFormData({...formData, role: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   disabled={formLoading}
                 >
@@ -358,7 +369,7 @@ export default function AdminPanel({ isOpen, onClose }) {
               {filteredUsers.map((user) => {
                 const RoleIcon = ROLES[user.role]?.icon || Shield;
                 return (
-                  <div 
+                  <div
                     key={user.id}
                     className="bg-white border rounded-xl p-4 hover:shadow-md transition-shadow"
                   >
@@ -368,11 +379,10 @@ export default function AdminPanel({ isOpen, onClose }) {
                       </div>
                       <button
                         onClick={() => handleToggleActive(user.id, user.isActive)}
-                        className={`text-xs px-2 py-1 rounded-full font-medium transition-colors ${
-                          user.isActive 
-                            ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                        className={`text-xs px-2 py-1 rounded-full font-medium transition-colors ${user.isActive
+                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
                             : 'bg-red-100 text-red-700 hover:bg-red-200'
-                        }`}
+                          }`}
                       >
                         {user.isActive ? 'Aktif' : 'Nonaktif'}
                       </button>

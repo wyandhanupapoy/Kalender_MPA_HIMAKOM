@@ -35,7 +35,15 @@ export const AuthProvider = ({ children }) => {
       const userDocSnap = await getDoc(userDocRef);
 
       if (userDocSnap.exists()) {
-        return { id: userDocSnap.id, ...userDocSnap.data() };
+        const profileData = { id: userDocSnap.id, ...userDocSnap.data() };
+        
+        // Initialize isActive field for legacy users who don't have it
+        if (profileData.isActive === undefined) {
+          await setDoc(userDocRef, { isActive: true }, { merge: true });
+          profileData.isActive = true;
+        }
+        
+        return profileData;
       }
 
       // Fallback: queries for legacy users created with random IDs
@@ -45,7 +53,16 @@ export const AuthProvider = ({ children }) => {
       const snapshot = await getDocs(q);
 
       if (!snapshot.empty) {
-        return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+        const profileData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+        
+        // Initialize isActive field for legacy users who don't have it
+        if (profileData.isActive === undefined) {
+          const legacyUserDocRef = doc(db, 'users', snapshot.docs[0].id);
+          await setDoc(legacyUserDocRef, { isActive: true }, { merge: true });
+          profileData.isActive = true;
+        }
+        
+        return profileData;
       }
       return null;
     } catch (err) {
@@ -68,6 +85,9 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // Wait for profile to be fetched before updating lastLogin
+      // This ensures the profile snapshot listener has time to load full data
+      await new Promise(resolve => setTimeout(resolve, 100));
       await updateLastLogin(userCredential.user.uid);
       return userCredential;
     } catch (err) {
@@ -124,7 +144,10 @@ export const AuthProvider = ({ children }) => {
   const isAdmin = () => userProfile?.role === 'admin';
   const isPengurus = () => userProfile?.role === 'pengurus' || isAdmin();
   const isAnggota = () => userProfile?.role === 'anggota' || isPengurus();
-  const isActive = () => userProfile?.isActive === true;
+  const isActive = () => {
+    // Check if user has isActive field, default to true for backward compatibility
+    return userProfile?.isActive !== false;
+  };
 
   const hasPermission = (requiredRole) => {
     if (!userProfile || !isActive()) return false;
@@ -140,11 +163,14 @@ export const AuthProvider = ({ children }) => {
       setCurrentUser(user);
       if (user) {
         const profile = await fetchUserProfile(user.uid);
+        console.log('User Profile Loaded:', profile); // Debug log
+        console.log('isActive value:', profile?.isActive, 'Type:', typeof profile?.isActive); // Debug log
         setUserProfile(profile);
+        setLoading(false); // Set loading false after profile is loaded
       } else {
         setUserProfile(null);
+        setLoading(false); // Set loading false when no user
       }
-      setLoading(false);
     });
     return unsubscribe;
   }, []);

@@ -1,42 +1,170 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* Additional App-specific styles */
+
+/* Smooth transitions for all interactive elements */
+button, a, input, select, textarea {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* Calendar Grid Enhancements */
+.calendar-day {
+  position: relative;
+  transition: transform 150ms ease, box-shadow 150ms ease;
 }
 
-@keyframes logo-spin {
+.calendar-day:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.calendar-day:active {
+  transform: translateY(0);
+}
+
+/* Event Badge Animation */
+.event-badge {
+  animation: slideUp 200ms ease;
+}
+
+/* Modal Animation */
+.modal-overlay {
+  animation: fadeIn 200ms ease;
+}
+
+.modal-content {
+  animation: slideUp 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Glassmorphism effect */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Gradient backgrounds */
+.gradient-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-blue {
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+}
+
+.gradient-success {
+  background: linear-gradient(135deg, #10b981 0%, #22c55e 100%);
+}
+
+/* Responsive utilities */
+@media (max-width: 768px) {
+  /* Mobile calendar adjustments */
+  .calendar-grid {
+    font-size: 0.875rem;
+  }
+  
+  .modal-content {
+    max-height: 85vh;
+  }
+  
+  /* Stack controls vertically on mobile */
+  .controls-container {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* Tablet-specific styles */
+  .sidebar {
+    width: 350px;
+  }
+}
+
+@media (min-width: 1025px) {
+  /* Desktop-specific styles */
+  .sidebar {
+    width: 380px;
+  }
+}
+
+/* Touch-friendly sizing for mobile */
+@media (max-width: 640px) {
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  input, select, textarea {
+    min-height: 44px;
+    font-size: 16px; /* Prevents iOS zoom */
+  }
+}
+
+/* Loading states */
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+.loading-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+/* Badge animations */
+.badge-enter {
+  animation: slideUp 300ms ease;
+}
+
+/* Dropdown slide animation */
+@keyframes slideDown {
   from {
-    transform: rotate(0deg);
+    opacity: 0;
+    transform: translateY(-10px);
   }
   to {
-    transform: rotate(360deg);
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+.dropdown-menu {
+  animation: slideDown 200ms ease;
+}
+
+/* Focus ring for keyboard navigation */
+.focus-ring:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
   }
 }
 
-.card {
-  padding: 2em;
+/* Selection styling */
+::selection {
+  background-color: #2563eb;
+  color: white;
 }
 
-.read-the-docs {
-  color: #888;
+::-moz-selection {
+  background-color: #2563eb;
+  color: white;
 }
